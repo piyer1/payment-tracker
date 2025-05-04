@@ -115,15 +115,15 @@ function updateUI(members, purchases, repayments) {
     members.forEach(member => balances[member.name] = 0);
 
     purchases.forEach(purchase => {
-        balances[purchase.purchaser] += purchase.amount;
+        balances[purchase.purchaser] -= purchase.amount;
         purchase.split.forEach(split => {
-            balances[split.member] -= split.amount;
+            balances[split.member] += split.amount;
         });
     });
 
     repayments.forEach(repayment => {
-        balances[repayment.payer] += repayment.amount;
-        balances[repayment.receiver] -= repayment.amount;
+        balances[repayment.payer] -= repayment.amount;
+        balances[repayment.receiver] += repayment.amount;
     });
 
     html += '<h3>Current Balances</h3><table><tr><th>Member</th><th>Balance</th></tr>';
