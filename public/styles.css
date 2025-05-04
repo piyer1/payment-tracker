@@ -1,7 +1,7 @@
 body {
     background: linear-gradient(135deg, #0d0d0d, #1a1a1a);
     color: #e0e0e0;
-    font-family: 'Didot', serif;
+    font-family: 'Inter', sans-serif;
     margin: 0;
     padding: 20px;
     min-height: 100vh;
@@ -40,7 +40,7 @@ input, select, button {
     padding: 8px;
     margin: 5px 0;
     border-radius: 5px;
-    font-family: 'Didot', serif;
+    font-family: 'Inter', sans-serif;
 }
 
 button {
