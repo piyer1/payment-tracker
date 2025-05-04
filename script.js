@@ -1,28 +1,30 @@
-// Data storage
-let members = JSON.parse(localStorage.getItem('members')) || [];
-let purchases = JSON.parse(localStorage.getItem('purchases')) || [];
-let repayments = JSON.parse(localStorage.getItem('repayments')) || [];
+// Firebase Configuration (Replace with your Firebase project config)
+const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_AUTH_DOMAIN",
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_STORAGE_BUCKET",
+    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+    appId: "YOUR_APP_ID"
+};
 
-function saveData() {
-    localStorage.setItem('members', JSON.stringify(members));
-    localStorage.setItem('purchases', JSON.stringify(purchases));
-    localStorage.setItem('repayments', JSON.stringify(repayments));
-}
+// Initialize Firebase
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
 
 // Add Member
-function addMember() {
+async function addMember() {
     const nameInput = document.getElementById('memberName');
     const name = nameInput.value.trim();
-    if (name && !members.includes(name)) {
-        members.push(name);
-        saveData();
+    if (name) {
+        const memberRef = db.collection('members').doc(name);
+        await memberRef.set({ name });
         nameInput.value = '';
-        updateUI();
     }
 }
 
 // Add Purchase
-function addPurchase() {
+async function addPurchase() {
     const purchaseName = document.getElementById('purchaseName').value.trim();
     const amount = parseFloat(document.getElementById('purchaseAmount').value);
     const purchaser = document.getElementById('purchaser').value;
@@ -31,51 +33,47 @@ function addPurchase() {
     if (purchaseName && amount > 0 && purchaser && splitMembers.length > 0) {
         const splitAmount = amount / splitMembers.length;
         const purchase = {
-            id: Date.now(),
             name: purchaseName,
             amount,
             purchaser,
-            split: splitMembers.map(member => ({ member, amount: splitAmount }))
+            split: splitMembers.map(member => ({ member, amount: splitAmount })),
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
         };
-        purchases.push(purchase);
-        saveData();
+        await db.collection('purchases').add(purchase);
         document.getElementById('purchaseName').value = '';
         document.getElementById('purchaseAmount').value = '';
-        updateUI();
     }
 }
 
 // Record Repayment
-function recordRepayment() {
+async function recordRepayment() {
     const payer = document.getElementById('payer').value;
     const receiver = document.getElementById('receiver').value;
     const amount = parseFloat(document.getElementById('repaymentAmount').value);
 
     if (payer && receiver && amount > 0 && payer !== receiver) {
-        repayments.push({
-            id: Date.now(),
+        await db.collection('repayments').add({
             payer,
             receiver,
-            amount
+            amount,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
         });
-        saveData();
         document.getElementById('repaymentAmount').value = '';
-        updateUI();
     }
 }
 
 // Update UI
-function updateUI() {
+function updateUI(members, purchases, repayments) {
     // Update Member List
     const memberList = document.getElementById('memberList');
-    memberList.innerHTML = members.map(member => `<li>${member}</li>`).join('');
+    memberList.innerHTML = members.map(member => `<li>${member.name}</li>`).join('');
 
     // Update Purchaser and Repayment Dropdowns
     const purchaserSelect = document.getElementById('purchaser');
     const payerSelect = document.getElementById('payer');
     const receiverSelect = document.getElementById('receiver');
     const options = ['<option value="">Select a member</option>'].concat(
-        members.map(member => `<option value="${member}">${member}</option>`)
+        members.map(member => `<option value="${member.name}">${member.name}</option>`)
     ).join('');
     purchaserSelect.innerHTML = options;
     payerSelect.innerHTML = options;
@@ -84,7 +82,7 @@ function updateUI() {
     // Update Split Members Checkboxes
     const splitMembersDiv = document.getElementById('splitMembers');
     splitMembersDiv.innerHTML = '<p>Split among:</p>' + members.map(member => `
-        <label><input type="checkbox" value="${member}"> ${member}</label>
+        <label><input type="checkbox" value="${member.name}"> ${member.name}</label>
     `).join('');
 
     // Update Ledger
@@ -114,7 +112,7 @@ function updateUI() {
 
     // Calculate Balances
     const balances = {};
-    members.forEach(member => balances[member] = 0);
+    members.forEach(member => balances[member.name] = 0);
 
     purchases.forEach(purchase => {
         balances[purchase.purchaser] += purchase.amount;
@@ -137,5 +135,30 @@ function updateUI() {
     ledger.innerHTML = html;
 }
 
-// Initialize UI
-updateUI();
+// Real-Time Listeners
+function setupListeners() {
+    let members = [];
+    let purchases = [];
+    let repayments = [];
+
+    // Listen for members
+    db.collection('members').onSnapshot(snapshot => {
+        members = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        updateUI(members, purchases, repayments);
+    });
+
+    // Listen for purchases
+    db.collection('purchases').onSnapshot(snapshot => {
+        purchases = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        updateUI(members, purchases, repayments);
+    });
+
+    // Listen for repayments
+    db.collection('repayments').onSnapshot(snapshot => {
+        repayments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        updateUI(members, purchases, repayments);
+    });
+}
+
+// Initialize
+setupListeners();
