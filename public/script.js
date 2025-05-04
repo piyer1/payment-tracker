@@ -122,8 +122,8 @@ function updateUI(members, purchases, repayments) {
     });
 
     repayments.forEach(repayment => {
-        balances[repayment.payer] -= repayment.amount;
-        balances[repayment.receiver] += repayment.amount;
+        balances[repayment.payer] += repayment.amount;
+        balances[repayment.receiver] -= repayment.amount;
     });
 
     html += '<h3>Current Balances</h3><table><tr><th>Member</th><th>Balance</th></tr>';
