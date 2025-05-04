@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Group Trip Expense Tracker</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <h1>Group Trip Expense Tracker</h1>
+
+        <!-- Add Member Section -->
+        <section class="card">
+            <h2>Add Member</h2>
+            <input type="text" id="memberName" placeholder="Enter member name">
+            <button onclick="addMember()">Add Member</button>
+            <ul id="memberList"></ul>
+        </section>
+
+        <!-- Add Purchase Section -->
+        <section class="card">
+            <h2>Add Purchase</h2>
+            <input type="text" id="purchaseName" placeholder="Purchase name (e.g., Dinner)">
+            <input type="number" id="purchaseAmount" placeholder="Amount ($)" step="0.01">
+            <select id="purchaser">
+                <option value="">Select who paid</option>
+            </select>
+            <div id="splitMembers">
+                <p>Split among:</p>
+            </div>
+            <button onclick="addPurchase()">Add Purchase</button>
+        </section>
+
+        <!-- Ledger Section -->
+        <section class="card">
+            <h2>Ledger</h2>
+            <div id="ledger"></div>
+        </section>
+
+        <!-- Record Transaction Section -->
+        <section class="card">
+            <h2>Record Repayment</h2>
+            <select id="payer">
+                <option value="">Select payer</option>
+            </select>
+            <select id="receiver">
+                <option value="">Select receiver</option>
+            </select>
+            <input type="number" id="repaymentAmount" placeholder="Amount ($)" step="0.01">
+            <button onclick="recordRepayment()">Record Repayment</button>
+        </section>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
