@@ -1,25 +1,17 @@
-// Firebase Configuration (Replace with your Firebase project config)
-const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "YOUR_AUTH_DOMAIN",
-    projectId: "YOUR_PROJECT_ID",
-    storageBucket: "YOUR_STORAGE_BUCKET",
-    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-    appId: "YOUR_APP_ID"
-};
-
-// Initialize Firebase
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+// Firebase Configuration is now handled in the HTML file
 
 // Add Member
 async function addMember() {
     const nameInput = document.getElementById('memberName');
     const name = nameInput.value.trim();
     if (name) {
-        const memberRef = db.collection('members').doc(name);
-        await memberRef.set({ name });
-        nameInput.value = '';
+        try {
+            const memberRef = window.firestore.doc(window.db, 'members', name);
+            await window.firestore.setDoc(memberRef, { name });
+            nameInput.value = '';
+        } catch (error) {
+            console.error("Error adding member:", error);
+        }
     }
 }
 
@@ -31,17 +23,21 @@ async function addPurchase() {
     const splitMembers = Array.from(document.querySelectorAll('#splitMembers input:checked')).map(input => input.value);
 
     if (purchaseName && amount > 0 && purchaser && splitMembers.length > 0) {
-        const splitAmount = amount / splitMembers.length;
-        const purchase = {
-            name: purchaseName,
-            amount,
-            purchaser,
-            split: splitMembers.map(member => ({ member, amount: splitAmount })),
-            timestamp: firebase.firestore.FieldValue.serverTimestamp()
-        };
-        await db.collection('purchases').add(purchase);
-        document.getElementById('purchaseName').value = '';
-        document.getElementById('purchaseAmount').value = '';
+        try {
+            const splitAmount = amount / splitMembers.length;
+            const purchase = {
+                name: purchaseName,
+                amount,
+                purchaser,
+                split: splitMembers.map(member => ({ member, amount: splitAmount })),
+                timestamp: new Date()
+            };
+            await window.firestore.addDoc(window.firestore.collection(window.db, 'purchases'), purchase);
+            document.getElementById('purchaseName').value = '';
+            document.getElementById('purchaseAmount').value = '';
+        } catch (error) {
+            console.error("Error adding purchase:", error);
+        }
     }
 }
 
@@ -52,13 +48,17 @@ async function recordRepayment() {
     const amount = parseFloat(document.getElementById('repaymentAmount').value);
 
     if (payer && receiver && amount > 0 && payer !== receiver) {
-        await db.collection('repayments').add({
-            payer,
-            receiver,
-            amount,
-            timestamp: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        document.getElementById('repaymentAmount').value = '';
+        try {
+            await window.firestore.addDoc(window.firestore.collection(window.db, 'repayments'), {
+                payer,
+                receiver,
+                amount,
+                timestamp: new Date()
+            });
+            document.getElementById('repaymentAmount').value = '';
+        } catch (error) {
+            console.error("Error recording repayment:", error);
+        }
     }
 }
 
@@ -136,29 +136,38 @@ function updateUI(members, purchases, repayments) {
 }
 
 // Real-Time Listeners
-function setupListeners() {
+async function setupListeners() {
     let members = [];
     let purchases = [];
     let repayments = [];
 
-    // Listen for members
-    db.collection('members').onSnapshot(snapshot => {
-        members = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        updateUI(members, purchases, repayments);
-    });
+    try {
+        // Listen for members
+        const membersCollection = window.firestore.collection(window.db, 'members');
+        const unsubscribeMembers = window.firestore.onSnapshot(membersCollection, snapshot => {
+            members = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            updateUI(members, purchases, repayments);
+        });
 
-    // Listen for purchases
-    db.collection('purchases').onSnapshot(snapshot => {
-        purchases = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        updateUI(members, purchases, repayments);
-    });
+        // Listen for purchases
+        const purchasesCollection = window.firestore.collection(window.db, 'purchases');
+        const unsubscribePurchases = window.firestore.onSnapshot(purchasesCollection, snapshot => {
+            purchases = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            updateUI(members, purchases, repayments);
+        });
 
-    // Listen for repayments
-    db.collection('repayments').onSnapshot(snapshot => {
-        repayments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        updateUI(members, purchases, repayments);
-    });
+        // Listen for repayments
+        const repaymentsCollection = window.firestore.collection(window.db, 'repayments');
+        const unsubscribeRepayments = window.firestore.onSnapshot(repaymentsCollection, snapshot => {
+            repayments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            updateUI(members, purchases, repayments);
+        });
+    } catch (error) {
+        console.error("Error setting up listeners:", error);
+    }
 }
 
 // Initialize
-setupListeners();
+document.addEventListener('DOMContentLoaded', () => {
+    setupListeners();
+});
