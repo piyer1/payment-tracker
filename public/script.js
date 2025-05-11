@@ -87,7 +87,7 @@ function updateUI(members, purchases, repayments) {
 
     // Update Ledger
     const ledger = document.getElementById('ledger');
-    let html = '<h3>Purchases</h3><table><tr><th>Purchase</th><th style="cursor: pointer" onclick="sortPurchases()">Paid By</th><th>Amount</th><th>Owes</th></tr>';
+    let html = '<h3>Purchases</h3><table><tr><th>Purchase</th><th style="cursor: pointer" onclick="sortPurchases()">Paid By ↕</th><th>Amount</th><th>Owes</th></tr>';
     purchases.forEach(purchase => {
         purchase.split.forEach(split => {
             html += `<tr>
@@ -100,7 +100,7 @@ function updateUI(members, purchases, repayments) {
     });
     html += '</table>';
 
-    html += '<h3>Repayments</h3><table><tr><th style="cursor: pointer" onclick="sortRepaymentsByPayer()">Payer</th><th style="cursor: pointer" onclick="sortRepaymentsByReceiver()">Receiver</th><th>Amount</th></tr>';
+    html += '<h3>Repayments</h3><table><tr><th style="cursor: pointer" onclick="sortRepaymentsByPayer()">Payer ↕</th><th style="cursor: pointer" onclick="sortRepaymentsByReceiver()">Receiver ↕</th><th>Amount</th></tr>';
     repayments.forEach(repayment => {
         html += `<tr>
             <td>${repayment.payer}</td>
@@ -162,6 +162,13 @@ async function setupListeners() {
             repayments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             updateUI(members, purchases, repayments);
         });
+
+        // Make data available globally for sorting
+        window.appData = {
+            members,
+            purchases,
+            repayments
+        };
     } catch (error) {
         console.error("Error setting up listeners:", error);
     }
@@ -178,31 +185,40 @@ let repaymentsSortPayerAsc = true;
 let repaymentsSortReceiverAsc = true;
 
 function sortPurchases() {
-    const purchasesCollection = window.firestore.collection(window.db, 'purchases');
-    const query = window.firestore.query(
-        purchasesCollection,
-        window.firestore.orderBy('purchaser', purchasesSortAsc ? 'asc' : 'desc')
-    );
+    const purchases = window.appData.purchases;
+    purchases.sort((a, b) => {
+        if (purchasesSortAsc) {
+            return a.purchaser.localeCompare(b.purchaser);
+        } else {
+            return b.purchaser.localeCompare(a.purchaser);
+        }
+    });
     purchasesSortAsc = !purchasesSortAsc;
-    window.firestore.getDocs(query);
+    updateUI(window.appData.members, purchases, window.appData.repayments);
 }
 
 function sortRepaymentsByPayer() {
-    const repaymentsCollection = window.firestore.collection(window.db, 'repayments');
-    const query = window.firestore.query(
-        repaymentsCollection,
-        window.firestore.orderBy('payer', repaymentsSortPayerAsc ? 'asc' : 'desc')
-    );
+    const repayments = window.appData.repayments;
+    repayments.sort((a, b) => {
+        if (repaymentsSortPayerAsc) {
+            return a.payer.localeCompare(b.payer);
+        } else {
+            return b.payer.localeCompare(a.payer);
+        }
+    });
     repaymentsSortPayerAsc = !repaymentsSortPayerAsc;
-    window.firestore.getDocs(query);
+    updateUI(window.appData.members, window.appData.purchases, repayments);
 }
 
 function sortRepaymentsByReceiver() {
-    const repaymentsCollection = window.firestore.collection(window.db, 'repayments');
-    const query = window.firestore.query(
-        repaymentsCollection,
-        window.firestore.orderBy('receiver', repaymentsSortReceiverAsc ? 'asc' : 'desc')
-    );
+    const repayments = window.appData.repayments;
+    repayments.sort((a, b) => {
+        if (repaymentsSortReceiverAsc) {
+            return a.receiver.localeCompare(b.receiver);
+        } else {
+            return b.receiver.localeCompare(a.receiver);
+        }
+    });
     repaymentsSortReceiverAsc = !repaymentsSortReceiverAsc;
-    window.firestore.getDocs(query);
+    updateUI(window.appData.members, window.appData.purchases, repayments);
 }
