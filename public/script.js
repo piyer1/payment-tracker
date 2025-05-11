@@ -87,7 +87,7 @@ function updateUI(members, purchases, repayments) {
 
     // Update Ledger
     const ledger = document.getElementById('ledger');
-    let html = '<h3>Purchases</h3><table><tr><th>Purchase</th><th>Paid By</th><th>Amount</th><th>Owes</th></tr>';
+    let html = '<h3>Purchases</h3><table><tr><th>Purchase</th><th style="cursor: pointer" onclick="sortPurchases()">Paid By</th><th>Amount</th><th>Owes</th></tr>';
     purchases.forEach(purchase => {
         purchase.split.forEach(split => {
             html += `<tr>
@@ -100,7 +100,7 @@ function updateUI(members, purchases, repayments) {
     });
     html += '</table>';
 
-    html += '<h3>Repayments</h3><table><tr><th>Payer</th><th>Receiver</th><th>Amount</th></tr>';
+    html += '<h3>Repayments</h3><table><tr><th style="cursor: pointer" onclick="sortRepaymentsByPayer()">Payer</th><th style="cursor: pointer" onclick="sortRepaymentsByReceiver()">Receiver</th><th>Amount</th></tr>';
     repayments.forEach(repayment => {
         html += `<tr>
             <td>${repayment.payer}</td>
@@ -171,3 +171,38 @@ async function setupListeners() {
 document.addEventListener('DOMContentLoaded', () => {
     setupListeners();
 });
+
+// Add these new sorting functions at the end of the file
+let purchasesSortAsc = true;
+let repaymentsSortPayerAsc = true;
+let repaymentsSortReceiverAsc = true;
+
+function sortPurchases() {
+    const purchasesCollection = window.firestore.collection(window.db, 'purchases');
+    const query = window.firestore.query(
+        purchasesCollection,
+        window.firestore.orderBy('purchaser', purchasesSortAsc ? 'asc' : 'desc')
+    );
+    purchasesSortAsc = !purchasesSortAsc;
+    window.firestore.getDocs(query);
+}
+
+function sortRepaymentsByPayer() {
+    const repaymentsCollection = window.firestore.collection(window.db, 'repayments');
+    const query = window.firestore.query(
+        repaymentsCollection,
+        window.firestore.orderBy('payer', repaymentsSortPayerAsc ? 'asc' : 'desc')
+    );
+    repaymentsSortPayerAsc = !repaymentsSortPayerAsc;
+    window.firestore.getDocs(query);
+}
+
+function sortRepaymentsByReceiver() {
+    const repaymentsCollection = window.firestore.collection(window.db, 'repayments');
+    const query = window.firestore.query(
+        repaymentsCollection,
+        window.firestore.orderBy('receiver', repaymentsSortReceiverAsc ? 'asc' : 'desc')
+    );
+    repaymentsSortReceiverAsc = !repaymentsSortReceiverAsc;
+    window.firestore.getDocs(query);
+}
