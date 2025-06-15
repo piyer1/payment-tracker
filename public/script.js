@@ -1,4 +1,23 @@
-// Firebase Configuration is now handled in the HTML file
+ // Firebase Configuration is now handled in the HTML file
+
+// Tab switching functionality
+function switchTab(tabName) {
+    // Hide all tab contents
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.remove('active');
+    });
+    
+    // Remove active class from all tabs
+    document.querySelectorAll('.tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    
+    // Show selected tab content
+    document.getElementById(tabName + '-tab').classList.add('active');
+    
+    // Add active class to clicked tab
+    event.target.classList.add('active');
+}
 
 // Add Member
 async function addMember() {
@@ -62,6 +81,124 @@ async function recordRepayment() {
     }
 }
 
+// Generate Transaction History for a specific member
+function generateMemberHistory(memberName, members, purchases, repayments) {
+    const transactions = [];
+    
+    // Process purchases
+    purchases.forEach(purchase => {
+        const purchaseDate = purchase.timestamp?.toDate?.() || new Date(purchase.timestamp) || new Date();
+        
+        // If this member made the purchase
+        if (purchase.purchaser === memberName) {
+            transactions.push({
+                date: purchaseDate,
+                type: 'purchase_made',
+                description: `Paid for ${purchase.name}`,
+                amount: -purchase.amount,
+                details: `Split among ${purchase.split.length} people`
+            });
+        }
+        
+        // If this member owes money from the purchase
+        const memberSplit = purchase.split.find(split => split.member === memberName);
+        if (memberSplit) {
+            transactions.push({
+                date: purchaseDate,
+                type: 'purchase_owe',
+                description: `Your share of ${purchase.name} (paid by ${purchase.purchaser})`,
+                amount: memberSplit.amount,
+                details: `$${memberSplit.amount.toFixed(2)} of $${purchase.amount.toFixed(2)} total`
+            });
+        }
+    });
+    
+    // Process repayments
+    repayments.forEach(repayment => {
+        const repaymentDate = repayment.timestamp?.toDate?.() || new Date(repayment.timestamp) || new Date();
+        
+        // If this member made a repayment
+        if (repayment.payer === memberName) {
+            transactions.push({
+                date: repaymentDate,
+                type: 'repayment_made',
+                description: `Paid ${repayment.receiver}`,
+                amount: -repayment.amount,
+                details: 'Repayment'
+            });
+        }
+        
+        // If this member received a repayment
+        if (repayment.receiver === memberName) {
+            transactions.push({
+                date: repaymentDate,
+                type: 'repayment_received',
+                description: `Received payment from ${repayment.payer}`,
+                amount: -repayment.amount,
+                details: 'Repayment received'
+            });
+        }
+    });
+    
+    // Sort by date
+    transactions.sort((a, b) => a.date - b.date);
+    
+    // Calculate running balance
+    let runningBalance = 0;
+    transactions.forEach(transaction => {
+        runningBalance += transaction.amount;
+        transaction.runningBalance = runningBalance;
+    });
+    
+    return transactions;
+}
+
+// Show member history
+function showMemberHistory() {
+    const selectedMember = document.getElementById('historyMember').value;
+    const historyDiv = document.getElementById('memberHistory');
+    
+    if (!selectedMember) {
+        historyDiv.innerHTML = '';
+        return;
+    }
+    
+    if (!window.appData) {
+        historyDiv.innerHTML = '<p>Loading...</p>';
+        return;
+    }
+    
+    const history = generateMemberHistory(selectedMember, window.appData.members, window.appData.purchases, window.appData.repayments);
+    
+    if (history.length === 0) {
+        historyDiv.innerHTML = '<p>No transactions found for this member.</p>';
+        return;
+    }
+    
+    let html = `<h3>${selectedMember}'s Transaction History</h3>`;
+    
+    history.forEach(transaction => {
+        const isPositive = transaction.amount > 0;
+        const amountClass = isPositive ? 'amount-positive' : 'amount-negative';
+        const itemClass = isPositive ? 'positive' : 'negative';
+        const sign = isPositive ? '+' : '';
+        
+        html += `
+            <div class="transaction-item ${itemClass}">
+                <div class="transaction-date">${transaction.date.toLocaleDateString()} ${transaction.date.toLocaleTimeString()}</div>
+                <div class="transaction-description">${transaction.description}</div>
+                <div class="transaction-amount">
+                    <span class="${amountClass}">${sign}$${Math.abs(transaction.amount).toFixed(2)}</span>
+                    <span style="color: #aaa; margin-left: 10px;">${transaction.details}</span>
+                </div>
+                <div class="transaction-balance">Running balance: $${transaction.runningBalance.toFixed(2)}</div>
+            </div>
+        `;
+    });
+    
+    historyDiv.innerHTML = html;
+}
+
 // Update UI
 function updateUI(members, purchases, repayments) {
     // Update Member List
@@ -72,12 +209,16 @@ function updateUI(members, purchases, repayments) {
     const purchaserSelect = document.getElementById('purchaser');
     const payerSelect = document.getElementById('payer');
     const receiverSelect = document.getElementById('receiver');
+    const historySelect = document.getElementById('historyMember');
+    
     const options = ['<option value="">Select a member</option>'].concat(
         members.map(member => `<option value="${member.name}">${member.name}</option>`)
     ).join('');
+    
     purchaserSelect.innerHTML = options;
     payerSelect.innerHTML = options;
     receiverSelect.innerHTML = options;
+    historySelect.innerHTML = options;
 
     // Update Split Members Checkboxes
     const splitMembersDiv = document.getElementById('splitMembers');
@@ -87,7 +228,7 @@ function updateUI(members, purchases, repayments) {
 
     // Update Ledger
     const ledger = document.getElementById('ledger');
-    let html = '<h3>Purchases</h3><table><tr><th>Purchase</th><th>Paid By</th><th>Amount</th><th>Owes</th></tr>';
+    let html = '<h3>Purchases</h3><table><tr><th>Purchase</th><th style="cursor: pointer" onclick="sortPurchases()">Paid By ↕</th><th>Amount</th><th>Owes</th></tr>';
     purchases.forEach(purchase => {
         purchase.split.forEach(split => {
             html += `<tr>
@@ -100,7 +241,7 @@ function updateUI(members, purchases, repayments) {
     });
     html += '</table>';
 
-    html += '<h3>Repayments</h3><table><tr><th>Payer</th><th>Receiver</th><th>Amount</th></tr>';
+    html += '<h3>Repayments</h3><table><tr><th style="cursor: pointer" onclick="sortRepaymentsByPayer()">Payer ↕</th><th style="cursor: pointer" onclick="sortRepaymentsByReceiver()">Receiver ↕</th><th>Amount</th></tr>';
     repayments.forEach(repayment => {
         html += `<tr>
             <td>${repayment.payer}</td>
@@ -133,6 +274,11 @@ function updateUI(members, purchases, repayments) {
     html += '</table>';
 
     ledger.innerHTML = html;
+    
+    // Update history if a member is selected
+    if (document.getElementById('historyMember').value) {
+        showMemberHistory();
+    }
 }
 
 // Real-Time Listeners
@@ -146,6 +292,7 @@ async function setupListeners() {
         const membersCollection = window.firestore.collection(window.db, 'members');
         const unsubscribeMembers = window.firestore.onSnapshot(membersCollection, snapshot => {
             members = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            window.appData = { members, purchases, repayments };
             updateUI(members, purchases, repayments);
         });
 
@@ -153,6 +300,7 @@ async function setupListeners() {
         const purchasesCollection = window.firestore.collection(window.db, 'purchases');
         const unsubscribePurchases = window.firestore.onSnapshot(purchasesCollection, snapshot => {
             purchases = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            window.appData = { members, purchases, repayments };
             updateUI(members, purchases, repayments);
         });
 
@@ -160,6 +308,7 @@ async function setupListeners() {
         const repaymentsCollection = window.firestore.collection(window.db, 'repayments');
         const unsubscribeRepayments = window.firestore.onSnapshot(repaymentsCollection, snapshot => {
             repayments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            window.appData = { members, purchases, repayments };
             updateUI(members, purchases, repayments);
         });
     } catch (error) {
@@ -171,3 +320,47 @@ async function setupListeners() {
 document.addEventListener('DOMContentLoaded', () => {
     setupListeners();
 });
+
+// Add these new sorting functions at the end of the file
+let purchasesSortAsc = true;
+let repaymentsSortPayerAsc = true;
+let repaymentsSortReceiverAsc = true;
+
+function sortPurchases() {
+    const purchases = window.appData.purchases;
+    purchases.sort((a, b) => {
+        if (purchasesSortAsc) {
+            return a.purchaser.localeCompare(b.purchaser);
+        } else {
+            return b.purchaser.localeCompare(a.purchaser);
+        }
+    });
+    purchasesSortAsc = !purchasesSortAsc;
+    updateUI(window.appData.members, purchases, window.appData.repayments);
+}
+
+function sortRepaymentsByPayer() {
+    const repayments = window.appData.repayments;
+    repayments.sort((a, b) => {
+        if (repaymentsSortPayerAsc) {
+            return a.payer.localeCompare(b.payer);
+        } else {
+            return b.payer.localeCompare(a.payer);
+        }
+    });
+    repaymentsSortPayerAsc = !repaymentsSortPayerAsc;
+    updateUI(window.appData.members, window.appData.purchases, repayments);
+}
+
+function sortRepaymentsByReceiver() {
+    const repayments = window.appData.repayments;
+    repayments.sort((a, b) => {
+        if (repaymentsSortReceiverAsc) {
+            return a.receiver.localeCompare(b.receiver);
+        } else {
+            return b.receiver.localeCompare(a.receiver);
+        }
+    });
+    repaymentsSortReceiverAsc = !repaymentsSortReceiverAsc;
+    updateUI(window.appData.members, window.appData.purchases, repayments);
+}
