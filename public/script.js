@@ -311,6 +311,13 @@ async function setupListeners() {
             window.appData = { members, purchases, repayments };
             updateUI(members, purchases, repayments);
         });
+
+        // Make data available globally for sorting
+        window.appData = {
+            members,
+            purchases,
+            repayments
+        };
     } catch (error) {
         console.error("Error setting up listeners:", error);
     }
