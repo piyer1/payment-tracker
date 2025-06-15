@@ -6,51 +6,152 @@
     <title>Group Trip Expense Tracker</title>
     <link rel="stylesheet" href="styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid #00bbff;
+            margin-bottom: 20px;
+        }
+        
+        .tab {
+            background: #2a2a2a;
+            border: 1px solid #00bbff;
+            border-bottom: none;
+            color: #e0e0e0;
+            padding: 10px 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-right: 5px;
+        }
+        
+        .tab:hover {
+            background: #3a3a3a;
+        }
+        
+        .tab.active {
+            background: #00bbff;
+            color: #0d0d0d;
+            box-shadow: 0 0 10px #00bbff;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .transaction-item {
+            background: #3a3a3a;
+            border-left: 4px solid #00bbff;
+            margin: 10px 0;
+            padding: 12px;
+            border-radius: 5px;
+        }
+        
+        .transaction-item.positive {
+            border-left-color: #ff4444;
+        }
+        
+        .transaction-item.negative {
+            border-left-color: #44ff44;
+        }
+        
+        .transaction-date {
+            font-size: 0.9em;
+            color: #aaa;
+            margin-bottom: 5px;
+        }
+        
+        .transaction-description {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .transaction-amount {
+            font-size: 1.1em;
+            margin-bottom: 5px;
+        }
+        
+        .transaction-balance {
+            font-size: 0.9em;
+            color: #ccc;
+        }
+        
+        .amount-positive {
+            color: #ff4444;
+        }
+        
+        .amount-negative {
+            color: #44ff44;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
         <h1>Group Trip Expense Tracker</h1>
 
-        <!-- Add Member Section -->
-        <section class="card">
-            <h2>Add Member</h2>
-            <input type="text" id="memberName" placeholder="Enter member name">
-            <button onclick="addMember()">Add Member</button>
-            <ul id="memberList"></ul>
-        </section>
+        <!-- Tab Navigation -->
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('main')">Main</div>
+            <div class="tab" onclick="switchTab('history')">Transaction History</div>
+        </div>
 
-        <!-- Add Purchase Section -->
-        <section class="card">
-            <h2>Add Purchase</h2>
-            <input type="text" id="purchaseName" placeholder="Purchase name (e.g., Dinner)">
-            <input type="number" id="purchaseAmount" placeholder="Amount ($)" step="0.01">
-            <select id="purchaser">
-                <option value="">Select who paid</option>
-            </select>
-            <div id="splitMembers">
-                <p>Split among:</p>
-            </div>
-            <button onclick="addPurchase()">Add Purchase</button>
-        </section>
+        <!-- Main Tab Content -->
+        <div id="main-tab" class="tab-content active">
+            <!-- Add Member Section -->
+            <section class="card">
+                <h2>Add Member</h2>
+                <input type="text" id="memberName" placeholder="Enter member name">
+                <button onclick="addMember()">Add Member</button>
+                <ul id="memberList"></ul>
+            </section>
 
-        <!-- Ledger Section -->
-        <section class="card">
-            <h2>Ledger</h2>
-            <div id="ledger"></div>
-        </section>
+            <!-- Add Purchase Section -->
+            <section class="card">
+                <h2>Add Purchase</h2>
+                <input type="text" id="purchaseName" placeholder="Purchase name (e.g., Dinner)">
+                <input type="number" id="purchaseAmount" placeholder="Amount ($)" step="0.01">
+                <select id="purchaser">
+                    <option value="">Select who paid</option>
+                </select>
+                <div id="splitMembers">
+                    <p>Split among:</p>
+                </div>
+                <button onclick="addPurchase()">Add Purchase</button>
+            </section>
 
-        <!-- Record Transaction Section -->
-        <section class="card">
-            <h2>Record Repayment</h2>
-            <select id="payer">
-                <option value="">Select payer</option>
-            </select>
-            <select id="receiver">
-                <option value="">Select receiver</option>
-            </select>
-            <input type="number" id="repaymentAmount" placeholder="Amount ($)" step="0.01">
-            <button onclick="recordRepayment()">Record Repayment</button>
-        </section>
+            <!-- Ledger Section -->
+            <section class="card">
+                <h2>Ledger</h2>
+                <div id="ledger"></div>
+            </section>
+
+            <!-- Record Transaction Section -->
+            <section class="card">
+                <h2>Record Repayment</h2>
+                <select id="payer">
+                    <option value="">Select payer</option>
+                </select>
+                <select id="receiver">
+                    <option value="">Select receiver</option>
+                </select>
+                <input type="number" id="repaymentAmount" placeholder="Amount ($)" step="0.01">
+                <button onclick="recordRepayment()">Record Repayment</button>
+            </section>
+        </div>
+
+        <!-- Transaction History Tab Content -->
+        <div id="history-tab" class="tab-content">
+            <section class="card">
+                <h2>Transaction History</h2>
+                <select id="historyMember" onchange="showMemberHistory()">
+                    <option value="">Select a member to view history</option>
+                </select>
+                <div id="memberHistory"></div>
+            </section>
+        </div>
     </div>
 
     <!-- Firebase SDK -->
@@ -66,7 +167,9 @@
             getDocs, 
             updateDoc, 
             deleteDoc,
-            onSnapshot
+            onSnapshot,
+            query,
+            orderBy
         } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
         
         // Your web app's Firebase configuration
@@ -93,7 +196,9 @@
             getDocs, 
             updateDoc, 
             deleteDoc,
-            onSnapshot
+            onSnapshot,
+            query,
+            orderBy
         };
     </script>
     <script src="script.js"></script>
