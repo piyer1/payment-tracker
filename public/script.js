@@ -86,7 +86,7 @@ async function recordRepayment() {
     }
 }
 
-// Debt Settlement Algorithm
+// Debt Settlement Algorithm - FIXED VERSION
 function calculateOptimalSettlement(members, purchases, repayments) {
     // Calculate current balances
     const balances = {};
@@ -105,14 +105,15 @@ function calculateOptimalSettlement(members, purchases, repayments) {
     });
 
     // Separate creditors (owed money) and debtors (owe money)
+    // FIXED: Negative balance = owed money (creditor), Positive balance = owes money (debtor)
     const creditors = [];
     const debtors = [];
     
     Object.entries(balances).forEach(([member, balance]) => {
-        if (balance > 0.01) { // Small threshold to handle floating point errors
-            creditors.push({ name: member, amount: balance });
-        } else if (balance < -0.01) {
-            debtors.push({ name: member, amount: Math.abs(balance) });
+        if (balance < -0.01) { // FIXED: Negative balance means they are owed money
+            creditors.push({ name: member, amount: Math.abs(balance) });
+        } else if (balance > 0.01) { // FIXED: Positive balance means they owe money
+            debtors.push({ name: member, amount: balance });
         }
     });
 
@@ -152,7 +153,7 @@ function calculateOptimalSettlement(members, purchases, repayments) {
     };
 }
 
-// Show debt settlement recommendations
+// Show debt settlement recommendations - FIXED VERSION
 function showDebtSettlement() {
     const settlementDiv = document.getElementById('settlementRecommendations');
     
@@ -180,15 +181,16 @@ function showDebtSettlement() {
     html += '<h3>Current Balances</h3>';
     result.balances.forEach(({ name, balance }) => {
         if (Math.abs(balance) > 0.01) {
-            const balanceClass = balance > 0 ? 'amount-negative' : 'amount-positive';
-            const status = balance > 0 ? 'is owed' : 'owes';
-            const itemClass = balance > 0 ? 'negative' : 'positive';
+            // FIXED: Negative balance = owed money, Positive balance = owes money
+            const balanceClass = balance < 0 ? 'amount-negative' : 'amount-positive';
+            const status = balance < 0 ? 'is owed' : 'owes';
+            const itemClass = balance < 0 ? 'negative' : 'positive';
             
             html += `
                 <div class="transaction-item ${itemClass}">
                     <div class="transaction-description">${name}</div>
                     <div class="transaction-amount">
-                        <span class="${balanceClass}">${status} $${Math.abs(balance).toFixed(2)}</span>
+                        <span class="${balanceClass}">${status} ${Math.abs(balance).toFixed(2)}</span>
                     </div>
                 </div>
             `;
@@ -201,9 +203,9 @@ function showDebtSettlement() {
             <div class="transaction-item negative">
                 <div class="transaction-description">Step ${index + 1}: ${settlement.from} pays ${settlement.to}</div>
                 <div class="transaction-amount">
-                    <span class="amount-negative">-$${settlement.amount.toFixed(2)}</span>
+                    <span class="amount-negative">-${settlement.amount.toFixed(2)}</span>
                 </div>
-                <div class="transaction-balance">This payment settles $${settlement.amount.toFixed(2)} of debt</div>
+                <div class="transaction-balance">This payment settles ${settlement.amount.toFixed(2)} of debt</div>
             </div>
         `;
     });
