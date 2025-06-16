@@ -209,18 +209,6 @@ function showDebtSettlement() {
             </div>
         `;
     });
-    
-    html += `
-        <div class="transaction-item">
-            <div class="transaction-description">💡 Why this is optimal</div>
-            <div class="transaction-balance">
-                This greedy algorithm minimizes the total number of payments needed by always settling 
-                the largest possible amounts first. Without this optimization, members might need to make 
-                many more individual payments to settle their debts.
-            </div>
-        </div>
-    `;
-    
     settlementDiv.innerHTML = html;
 }
 
