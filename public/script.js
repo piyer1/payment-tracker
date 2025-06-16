@@ -1,4 +1,4 @@
- // Firebase Configuration is now handled in the HTML file
+// Firebase Configuration is now handled in the HTML file
 
 // Tab switching functionality
 function switchTab(tabName) {
@@ -17,6 +17,11 @@ function switchTab(tabName) {
     
     // Add active class to clicked tab
     event.target.classList.add('active');
+    
+    // If switching to settlement tab, update the settlement recommendations
+    if (tabName === 'settlement' && window.appData) {
+        showDebtSettlement();
+    }
 }
 
 // Add Member
@@ -81,7 +86,7 @@ async function recordRepayment() {
     }
 }
 
- // Debt Settlement Algorithm
+// Debt Settlement Algorithm
 function calculateOptimalSettlement(members, purchases, repayments) {
     // Calculate current balances
     const balances = {};
@@ -414,6 +419,12 @@ function updateUI(members, purchases, repayments) {
     // Update history if a member is selected
     if (document.getElementById('historyMember').value) {
         showMemberHistory();
+    }
+    
+    // Update settlement recommendations if the settlement tab is active
+    const settlementTab = document.getElementById('settlement-tab');
+    if (settlementTab && settlementTab.classList.contains('active')) {
+        showDebtSettlement();
     }
 }
 
