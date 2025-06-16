@@ -81,6 +81,142 @@ async function recordRepayment() {
     }
 }
 
+ // Debt Settlement Algorithm
+function calculateOptimalSettlement(members, purchases, repayments) {
+    // Calculate current balances
+    const balances = {};
+    members.forEach(member => balances[member.name] = 0);
+
+    purchases.forEach(purchase => {
+        balances[purchase.purchaser] -= purchase.amount;
+        purchase.split.forEach(split => {
+            balances[split.member] += split.amount;
+        });
+    });
+
+    repayments.forEach(repayment => {
+        balances[repayment.payer] -= repayment.amount;
+        balances[repayment.receiver] += repayment.amount;
+    });
+
+    // Separate creditors (owed money) and debtors (owe money)
+    const creditors = [];
+    const debtors = [];
+    
+    Object.entries(balances).forEach(([member, balance]) => {
+        if (balance > 0.01) { // Small threshold to handle floating point errors
+            creditors.push({ name: member, amount: balance });
+        } else if (balance < -0.01) {
+            debtors.push({ name: member, amount: Math.abs(balance) });
+        }
+    });
+
+    // Sort by amount (largest first)
+    creditors.sort((a, b) => b.amount - a.amount);
+    debtors.sort((a, b) => b.amount - a.amount);
+
+    // Generate settlement transactions using greedy algorithm
+    const settlements = [];
+    let creditorIndex = 0;
+    let debtorIndex = 0;
+
+    while (creditorIndex < creditors.length && debtorIndex < debtors.length) {
+        const creditor = creditors[creditorIndex];
+        const debtor = debtors[debtorIndex];
+        
+        const settlementAmount = Math.min(creditor.amount, debtor.amount);
+        
+        settlements.push({
+            from: debtor.name,
+            to: creditor.name,
+            amount: settlementAmount,
+            type: 'settlement'
+        });
+        
+        creditor.amount -= settlementAmount;
+        debtor.amount -= settlementAmount;
+        
+        if (creditor.amount < 0.01) creditorIndex++;
+        if (debtor.amount < 0.01) debtorIndex++;
+    }
+
+    return {
+        settlements,
+        totalTransactions: settlements.length,
+        balances: Object.entries(balances).map(([name, balance]) => ({ name, balance }))
+    };
+}
+
+// Show debt settlement recommendations
+function showDebtSettlement() {
+    const settlementDiv = document.getElementById('settlementRecommendations');
+    
+    if (!window.appData) {
+        settlementDiv.innerHTML = '<p>Loading...</p>';
+        return;
+    }
+    
+    const result = calculateOptimalSettlement(window.appData.members, window.appData.purchases, window.appData.repayments);
+    
+    if (result.settlements.length === 0) {
+        settlementDiv.innerHTML = '<div class="transaction-item"><p>🎉 All debts are already settled! Everyone\'s balance is $0.00</p></div>';
+        return;
+    }
+    
+    let html = `
+        <div class="transaction-item">
+            <div class="transaction-description">📊 Settlement Summary</div>
+            <div class="transaction-amount">
+                ${result.totalTransactions} payment${result.totalTransactions === 1 ? '' : 's'} needed to settle all debts
+            </div>
+        </div>
+    `;
+    
+    html += '<h3>Current Balances</h3>';
+    result.balances.forEach(({ name, balance }) => {
+        if (Math.abs(balance) > 0.01) {
+            const balanceClass = balance > 0 ? 'amount-negative' : 'amount-positive';
+            const status = balance > 0 ? 'is owed' : 'owes';
+            const itemClass = balance > 0 ? 'negative' : 'positive';
+            
+            html += `
+                <div class="transaction-item ${itemClass}">
+                    <div class="transaction-description">${name}</div>
+                    <div class="transaction-amount">
+                        <span class="${balanceClass}">${status} $${Math.abs(balance).toFixed(2)}</span>
+                    </div>
+                </div>
+            `;
+        }
+    });
+    
+    html += '<h3>Recommended Payments</h3>';
+    result.settlements.forEach((settlement, index) => {
+        html += `
+            <div class="transaction-item negative">
+                <div class="transaction-description">Step ${index + 1}: ${settlement.from} pays ${settlement.to}</div>
+                <div class="transaction-amount">
+                    <span class="amount-negative">-$${settlement.amount.toFixed(2)}</span>
+                </div>
+                <div class="transaction-balance">This payment settles $${settlement.amount.toFixed(2)} of debt</div>
+            </div>
+        `;
+    });
+    
+    html += `
+        <div class="transaction-item">
+            <div class="transaction-description">💡 Why this is optimal</div>
+            <div class="transaction-balance">
+                This greedy algorithm minimizes the total number of payments needed by always settling 
+                the largest possible amounts first. Without this optimization, members might need to make 
+                many more individual payments to settle their debts.
+            </div>
+        </div>
+    `;
+    
+    settlementDiv.innerHTML = html;
+}
+
 // Generate Transaction History for a specific member
 function generateMemberHistory(memberName, members, purchases, repayments) {
     const transactions = [];
